@@ -38,21 +38,32 @@ import { logger, LogLevel } from './utils/logger';
 
 dotenv.config();
 
+console.log('Starting GSD Atlas API...');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 
 // Database
+console.log('Connecting to database...');
 export const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
 });
 
 // Redis
+console.log('Connecting to Redis...');
 export const redisClient = redis.createClient({
   url: process.env.REDIS_URL || 'redis://localhost:6379',
 });
 
 // Connect to Redis
-redisClient.connect().catch(console.error);
+redisClient.connect()
+  .then(() => console.log('Redis connected successfully'))
+  .catch((err) => {
+    console.error('Redis connection error:', err);
+    // Don't exit on Redis error, allow app to start without Redis
+  });
 
 // Production middleware stack
 if (process.env.NODE_ENV === 'production') {
@@ -139,11 +150,21 @@ app.use(logger.errorLogger());
 app.use(errorHandler);
 
 // Start server
+console.log(`Starting server on port ${PORT}...`);
 app.listen(PORT, '0.0.0.0', () => {
-  logger.info(`GSD Atlas API running on port ${PORT}`, {
-    environment: process.env.NODE_ENV || 'development',
-    port: PORT,
-  });
+  console.log(`GSD Atlas API running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+// Global error handler
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
 });
 
 // Graceful shutdown
