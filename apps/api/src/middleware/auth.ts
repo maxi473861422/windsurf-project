@@ -13,6 +13,7 @@ export interface AuthRequest extends Request {
   body: any;
   params: any;
   headers: any;
+  query: any;
 }
 
 export const authenticate = (
