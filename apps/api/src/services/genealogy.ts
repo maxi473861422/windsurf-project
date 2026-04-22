@@ -281,15 +281,15 @@ export async function calculateCOI(
     commonAncestorsDetails.push({
       id: ancestor.id,
       name: ancestor.name,
-      paths: ancestor.paths.length,
+      paths: 1, // Each ancestor represents one path
       contribution,
       generations: ancestor.minGeneration,
-      pathsDetails: ancestor.paths.map(path => ({
-        sirePath: path.sirePath,
-        damPath: path.damPath,
-        generations: path.generations,
-        contribution: calculatePathContribution(path.generations),
-      })),
+      pathsDetails: [{
+        sirePath: ancestor.sirePath,
+        damPath: ancestor.damPath,
+        generations: ancestor.generations,
+        contribution: calculatePathContribution(ancestor.generations),
+      }],
     });
   }
 
