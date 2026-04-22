@@ -409,7 +409,7 @@ export class ImportService {
 
     try {
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(file);
+      await workbook.xlsx.load(Buffer.from(file));
       const sheet = sheetName ? workbook.getWorksheet(sheetName) : workbook.worksheets[0];
       
       if (!sheet) {
