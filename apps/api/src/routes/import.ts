@@ -45,6 +45,8 @@ router.post('/data-source', authenticate, authorize('ADMIN', 'MODERATOR'), async
     const dataSource = await prisma.dataSource.create({
       data: {
         ...validatedData,
+        name: validatedData.name || 'Untitled Data Source',
+        type: validatedData.type || 'MANUAL',
         createdBy: req.user?.userId,
       },
     });
@@ -66,6 +68,8 @@ router.post('/manual', authenticate, async (req: AuthRequest, res) => {
     
     const normalizedData = {
       ...validatedData,
+      name: validatedData.name || 'Unknown',
+      sex: validatedData.sex || 'MALE',
       birthDate: validatedData.birthDate ? new Date(validatedData.birthDate) : undefined,
       source: DataSourceType.MANUAL,
     };
@@ -121,7 +125,7 @@ router.post('/check-duplicates', authenticate, async (req: AuthRequest, res) => 
 });
 
 // GET /api/import/data-sources - List data sources
-router.get('/data-sources', authenticate, authorize('ADMIN', 'MODERATOR'), async (req, AuthRequest, res) => {
+router.get('/data-sources', authenticate, authorize('ADMIN', 'MODERATOR'), async (req: AuthRequest, res) => {
   try {
     const dataSources = await prisma.dataSource.findMany({
       orderBy: { createdAt: 'desc' },
