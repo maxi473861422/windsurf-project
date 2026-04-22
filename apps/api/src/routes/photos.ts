@@ -46,7 +46,7 @@ const photoSchema = z.object({
 const updatePhotoSchema = photoSchema.partial();
 
 // Upload helper function
-async function uploadToS3(file: Express.Multer.File, key: string): Promise<string> {
+async function uploadToS3(file: any, key: string): Promise<string> {
   const command = new PutObjectCommand({
     Bucket: process.env.AWS_S3_BUCKET || 'gsd-atlas-photos',
     Key: key,
