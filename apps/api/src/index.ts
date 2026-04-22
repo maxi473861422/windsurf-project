@@ -39,7 +39,7 @@ import { logger, LogLevel } from './utils/logger';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 // Database
 export const prisma = new PrismaClient({
@@ -139,8 +139,8 @@ app.use(logger.errorLogger());
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
-  logger.info(`GSD Atlas API running on port ${PORT}`, { 
+app.listen(PORT, '0.0.0.0', () => {
+  logger.info(`GSD Atlas API running on port ${PORT}`, {
     environment: process.env.NODE_ENV || 'development',
     port: PORT,
   });
