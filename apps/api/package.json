@@ -7,7 +7,7 @@
     "dev": "ts-node src/index.ts",
     "build": "echo 'Skipping TypeScript build - using ts-node for production'",
     "start": "ts-node src/index.ts",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate --schema=../packages/database/prisma/schema.prisma",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
     "test": "jest",
