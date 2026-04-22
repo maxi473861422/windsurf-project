@@ -1,0 +1,12 @@
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "npm-9_x"]
+
+[phases.build]
+cmds = ["cd apps/api && npm install", "cd apps/api && npx prisma generate"]
+
+[phases.start]
+cmds = ["cd apps/api && npm start"]
+
+[variables]
+NODE_ENV = "production"
+PORT = "3001"
