@@ -57,6 +57,7 @@ export function errorHandler(error: Error, req: Request, res: Response, next: Ne
   }
 
   // Handle Prisma errors
+  // @ts-ignore - Prisma types not fully recognized in ts-node
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     const prismaError = error as any;
     switch (prismaError.code) {
@@ -91,6 +92,7 @@ export function errorHandler(error: Error, req: Request, res: Response, next: Ne
   }
 
   // Handle Prisma validation errors
+  // @ts-ignore - Prisma types not fully recognized in ts-node
   if (error instanceof Prisma.PrismaClientValidationError) {
     return res.status(400).json({
       code: ErrorCode.VALIDATION_ERROR,
