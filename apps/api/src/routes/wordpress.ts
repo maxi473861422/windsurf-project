@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import { prisma } from '../index';
-import { redis } from '../index';
+import { prisma, redisClient } from '../index';
 
 const router = Router();
 
@@ -83,7 +82,7 @@ router.get('/dogs/:id', async (req, res) => {
     const { id } = req.params;
     
     const cacheKey = `wp:dog:${id}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await redisClient.get(cacheKey);
     
     if (cached) {
       return res.json(JSON.parse(cached));
@@ -153,7 +152,7 @@ router.get('/dogs/:id', async (req, res) => {
       modified: dog.updatedAt.toISOString(),
     };
     
-    await redis.setEx(cacheKey, 3600, JSON.stringify(formattedDog));
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(formattedDog));
     
     res.json(formattedDog);
   } catch (error) {
@@ -169,7 +168,7 @@ router.get('/pedigree/:id/:generations?', async (req, res) => {
     const generations = parseInt(req.params.generations as string) || 5;
     
     const cacheKey = `wp:pedigree:${id}:${generations}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await redisClient.get(cacheKey);
     
     if (cached) {
       return res.json(JSON.parse(cached));
@@ -185,7 +184,7 @@ router.get('/pedigree/:id/:generations?', async (req, res) => {
       data: pedigree,
     };
     
-    await redis.setEx(cacheKey, 1800, JSON.stringify(formattedPedigree));
+    await redisClient.setEx(cacheKey, 1800, JSON.stringify(formattedPedigree));
     
     res.json(formattedPedigree);
   } catch (error) {
