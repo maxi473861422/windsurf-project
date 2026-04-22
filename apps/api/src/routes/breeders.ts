@@ -105,12 +105,12 @@ router.get('/:id', async (req, res) => {
           orderBy: { birthDate: 'desc' },
         },
         breedings: {
-          select: { id: true, breedingDate, isSuccessful },
+          select: { id: true, breedingDate: true, isSuccessful: true },
           take: 5,
           orderBy: { breedingDate: 'desc' },
         },
         ownershipHistory: {
-          select: { id: true, startDate, endDate, transferType },
+          select: { id: true, startDate: true, endDate: true, transferType: true },
           take: 5,
           orderBy: { startDate: 'desc' },
         },
