@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
-import { redisClient } from '../index';
+import { redisClient } from '../config/redis';
 import crypto from 'crypto';
 
 /**

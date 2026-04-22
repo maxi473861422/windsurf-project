@@ -53,17 +53,8 @@ export const prisma = new PrismaClient({
 
 // Redis
 console.log('Connecting to Redis...');
-export const redisClient = redis.createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-});
-
-// Connect to Redis
-redisClient.connect()
-  .then(() => console.log('Redis connected successfully'))
-  .catch((err) => {
-    console.error('Redis connection error:', err);
-    // Don't exit on Redis error, allow app to start without Redis
-  });
+export { redisClient } from './config/redis';
+import { redisClient as redisClientLocal } from './config/redis';
 
 // Production middleware stack
 if (process.env.NODE_ENV === 'production') {
@@ -98,7 +89,7 @@ const upload = multer({
 
 // Make prisma, redis, and upload available globally
 app.locals.prisma = prisma;
-app.locals.redis = redisClient;
+app.locals.redis = redisClientLocal;
 app.locals.upload = upload;
 
 // Rate limiting by route
@@ -171,7 +162,7 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('SIGINT', async () => {
   logger.info('Shutting down gracefully...');
   await prisma.$disconnect();
-  await redisClient.quit();
+  await redisClientLocal.quit();
   process.exit(0);
 });
 

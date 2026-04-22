@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { redisClient } from '../index';
+import { redisClient } from '../config/redis';
 
 /**
  * Sistema de Rate Limiting para prevenir scraping abusivo
