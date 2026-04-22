@@ -21,6 +21,7 @@ interface RateLimitInfo {
   reset: Date;
 }
 
+// @ts-ignore - Module augmentation not working with ts-node in production
 declare module 'express' {
   interface Request {
     rateLimit?: RateLimitInfo;
