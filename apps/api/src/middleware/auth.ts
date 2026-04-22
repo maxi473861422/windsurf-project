@@ -10,6 +10,8 @@ export interface AuthRequest extends Request {
     role: string;
   };
   file?: Express.Multer.File;
+  body: any;
+  params: any;
 }
 
 export const authenticate = (
