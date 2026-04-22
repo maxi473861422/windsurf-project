@@ -121,7 +121,7 @@ router.get('/:id', async (req, res) => {
     }
     
     // Cache for 1 hour
-    await redisClient.setex(cacheKey, 3600, JSON.stringify(dog));
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(dog));
     
     res.json(dog);
   } catch (error) {

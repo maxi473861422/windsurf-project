@@ -153,7 +153,7 @@ router.get('/dogs/:id', async (req, res) => {
       modified: dog.updatedAt.toISOString(),
     };
     
-    await redis.setex(cacheKey, 3600, JSON.stringify(formattedDog));
+    await redis.setEx(cacheKey, 3600, JSON.stringify(formattedDog));
     
     res.json(formattedDog);
   } catch (error) {
@@ -185,7 +185,7 @@ router.get('/pedigree/:id/:generations?', async (req, res) => {
       data: pedigree,
     };
     
-    await redis.setex(cacheKey, 1800, JSON.stringify(formattedPedigree));
+    await redis.setEx(cacheKey, 1800, JSON.stringify(formattedPedigree));
     
     res.json(formattedPedigree);
   } catch (error) {
