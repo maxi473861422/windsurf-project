@@ -1,0 +1,759 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USERS AND ORGANIZATIONS
+// ============================================================================
+
+model User {
+  id                    String               @id @default(cuid())
+  email                 String               @unique
+  passwordHash          String               @map("password_hash")
+  name                  String?
+  surname               String?
+  role                  UserRole             @default(USER)
+  avatarUrl             String?              @map("avatar_url")
+  phone                 String?
+  countryCode           String?              @map("country_code") @db.VarChar(2)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  lastLogin             DateTime?            @map("last_login")
+  isVerified            Boolean              @default(false) @map("is_verified")
+  verificationToken     String?              @map("verification_token")
+  resetPasswordToken    String?              @map("reset_password_token")
+  resetPasswordExpires  DateTime?            @map("reset_password_expires")
+  preferences           Json                 @default("{}")
+  metadata              Json                 @default("{}")
+  
+  // Relations
+  dogs                  Dog[]
+  dogsAsOwner           Dog[]             @relation("CurrentOwner")
+  breedings             Breeding[]
+  organizations         UserOrganization[]
+  ownershipHistory      OwnershipHistory[]
+  auditLogs             AuditLog[]
+  dataVersioning        DataVersioning[]
+  breeders              Breeder[]
+  
+  @@map("users")
+}
+
+model Organization {
+  id                   String             @id @default(cuid())
+  name                 String
+  type                 OrganizationType
+  code                 String?           @unique
+  countryCode          String             @map("country_code") @db.VarChar(2)
+  region               String?
+  website              String?
+  email                String?
+  phone                String?
+  address              String?
+  logoUrl              String?            @map("logo_url")
+  description          String?
+  foundedYear          Int?               @map("founded_year")
+  isOfficial           Boolean            @default(false) @map("is_official")
+  parentOrganizationId String?            @map("parent_organization_id")
+  parentOrganization   Organization?      @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id])
+  childOrganizations   Organization[]     @relation("OrganizationHierarchy")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  metadata             Json               @default("{}")
+  
+  // Relations
+  users                UserOrganization[]
+  dogs                 Dog[]
+  breeders             Breeder[]
+  healthRecords        HealthRecord[]
+  showResults          ShowResult[]
+  titles               Title[]
+  
+  @@map("organizations")
+}
+
+model UserOrganization {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  organizationId String   @map("organization_id")
+  role           String   @default("MEMBER")
+  joinedAt       DateTime @default(now()) @map("joined_at")
+  leftAt         DateTime? @map("left_at")
+  isActive       Boolean  @default(true) @map("is_active")
+  metadata       Json     @default("{}")
+  
+  // Relations
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, organizationId])
+  @@map("user_organizations")
+}
+
+// ============================================================================
+// DOGS AND BREEDERS
+// ============================================================================
+
+model Dog {
+  id                  String             @id @default(cuid())
+  name                String
+  registrationNumber  String?            @unique @map("registration_number")
+  registrationType    String?            @map("registration_type")
+  sex                 Sex
+  birthDate           DateTime?          @map("birth_date")
+  birthCountryCode    String?            @map("birth_country_code") @db.VarChar(2)
+  color               String?
+  coatType            String?            @map("coat_type")
+  weightKg            Float?             @map("weight_kg")
+  heightCm            Float?             @map("height_cm")
+  chipNumber          String?            @unique @map("chip_number")
+  tattooNumber        String?            @map("tattoo_number")
+  isAlive             Boolean            @default(true) @map("is_alive")
+  deathDate           DateTime?          @map("death_date")
+  deathReason         String?            @map("death_reason")
+  
+  // Genealogy
+  sireId              String?            @map("sire_id")
+  damId               String?            @map("dam_id")
+  sire                Dog?              @relation("Sire", fields: [sireId], references: [id])
+  dam                 Dog?              @relation("Dam", fields: [damId], references: [id])
+  offspringSire       Dog[]             @relation("Sire")
+  offspringDam        Dog[]             @relation("Dam")
+  
+  // Relationships
+  breederId           String            @map("breeder_id")
+  breeder             Breeder           @relation(fields: [breederId], references: [id])
+  userId              String?           @map("user_id")
+  user                User?             @relation(fields: [userId], references: [id])
+  currentOwnerId      String?           @map("current_owner_id")
+  currentOwner        User?             @relation("CurrentOwner", fields: [currentOwnerId], references: [id])
+  clubId              String?           @map("club_id")
+  club                Organization?     @relation(fields: [clubId], references: [id])
+  
+  // Health Scores
+  hipScore            Float?            @map("hip_score")
+  hipGrade            String?           @map("hip_grade")
+  elbowScore          Float?            @map("elbow_score")
+  elbowGrade          String?           @map("elbow_grade")
+  eyeCertification    String?           @map("eye_certification")
+  dmStatus            String?           @map("dm_status")
+  
+  // Titles
+  workingTitles       String[]          @map("working_titles")
+  showTitles          String[]          @map("show_titles")
+  
+  // Description
+  description         String?
+  notes               String?
+  
+  // Metadata
+  dataSourceId        String?           @map("data_source_id")
+  dataSource          DataSource?       @relation(fields: [dataSourceId], references: [id])
+  importBatchId       String?           @map("import_batch_id")
+  isVerified          Boolean           @default(false) @map("is_verified")
+  verificationDate    DateTime?         @map("verification_date")
+  verifiedBy          String?           @map("verified_by")
+  
+  // Timestamps
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  
+  // Performance optimization fields
+  coi5Gen             Float?            @map("coi_5_gen")
+  coi10Gen            Float?            @map("coi_10_gen")
+  coiUpdatedAt        DateTime?         @map("coi_updated_at")
+  ancestorCount5Gen   Int               @default(0) @map("ancestor_count_5_gen")
+  ancestorCount10Gen  Int               @default(0) @map("ancestor_count_10_gen")
+  lineagePath         String?           @map("lineage_path")
+  lineageDepth        Int               @default(0) @map("lineage_depth")
+  deletedAt           DateTime?         @map("deleted_at")
+  
+  // JSON metadata
+  metadata            Json               @default("{}")
+  
+  // Relations
+  breedingsAsSire     Breeding[]        @relation("BreedingSire")
+  breedingsAsDam      Breeding[]        @relation("BreedingDam")
+  healthRecords       HealthRecord[]
+  dnaTests            DnaTest[]
+  showResults         ShowResult[]
+  titles              Title[]
+  photos              Photo[]
+  ownershipHistory     OwnershipHistory[]
+  litterPuppies       LitterPuppy[]
+  
+  // Indexes for performance
+  @@index([name])
+  @@index([registrationNumber])
+  @@index([sex])
+  @@index([birthDate])
+  @@index([sireId])
+  @@index([damId])
+  @@index([breederId])
+  @@index([currentOwnerId])
+  @@index([clubId])
+  @@index([chipNumber])
+  @@index([isAlive])
+  @@index([isAlive, birthDate(sort: Desc)])
+  @@index([sireId, birthDate(sort: Desc)])
+  @@index([damId, birthDate(sort: Desc)])
+  // Advanced composite indexes for production
+  @@index([sex, isAlive, birthDate(sort: Desc)])
+  @@index([breederId, isAlive, birthDate(sort: Desc)])
+  @@index([color, sex])
+  @@index([coi5Gen])
+  @@index([coi10Gen])
+  @@index([createdAt(sort: Desc)])
+  @@index([updatedAt(sort: Desc)])
+  @@index([deletedAt])
+  @@map("dogs")
+}
+
+model Breeder {
+  id                String           @id @default(cuid())
+  userId            String?          @map("user_id")
+  user              User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  kennelName        String?          @map("kennel_name")
+  legalName         String?          @map("legal_name")
+  registrationNumber String?          @map("registration_number")
+  countryCode       String           @map("country_code") @db.VarChar(2)
+  region            String?
+  address           String?
+  phone             String?
+  email             String?
+  website           String?
+  foundedYear       Int?             @map("founded_year")
+  logoUrl           String?          @map("logo_url")
+  description       String?
+  isActive          Boolean          @default(true) @map("is_active")
+  breedingLicense   String?          @map("breeding_license")
+  licenseExpiry     DateTime?        @map("license_expiry")
+  organizationId    String?          @map("organization_id")
+  organization      Organization?    @relation(fields: [organizationId], references: [id])
+  dataSourceId      String?          @map("data_source_id")
+  dataSource        DataSource?      @relation(fields: [dataSourceId], references: [id])
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  metadata          Json             @default("{}")
+  
+  // Relations
+  dogs              Dog[]
+  breedings         Breeding[]
+  ownershipHistory   OwnershipHistory[]
+  
+  @@index([userId])
+  @@index([countryCode])
+  @@index([kennelName])
+  @@index([isActive])
+  @@map("breeders")
+}
+
+// ============================================================================
+// GENEALOGY AND BREEDING
+// ============================================================================
+
+model Breeding {
+  id            String     @id @default(cuid())
+  sireId        String     @map("sire_id")
+  damId         String     @map("dam_id")
+  breederId     String     @map("breeder_id")
+  userId        String?    @map("user_id")
+  user          User?      @relation(fields: [userId], references: [id])
+  breedingDate  DateTime   @map("breeding_date")
+  matingType    String     @default("NATURAL") @map("mating_type")
+  notes         String?
+  isSuccessful  Boolean?   @map("is_successful")
+  successNotes  String?    @map("success_notes")
+  dataSourceId  String?    @map("data_source_id")
+  dataSource    DataSource? @relation(fields: [dataSourceId], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?  @map("deleted_at")
+  metadata      Json       @default("{}")
+  
+  // Relations
+  sire          Dog        @relation("BreedingSire", fields: [sireId], references: [id])
+  dam           Dog        @relation("BreedingDam", fields: [damId], references: [id])
+  breeder       Breeder    @relation(fields: [breederId], references: [id])
+  litter        Litter?
+  
+  @@index([sireId])
+  @@index([damId])
+  @@index([breederId])
+  @@index([breedingDate])
+  @@map("breedings")
+}
+
+model Litter {
+  id            String     @id @default(cuid())
+  breedingId    String     @unique @map("breeding_id")
+  breeding      Breeding   @relation(fields: [breedingId], references: [id])
+  birthDate     DateTime   @map("birth_date")
+  puppyCount    Int        @map("puppy_count")
+  maleCount     Int        @map("male_count")
+  femaleCount   Int        @map("female_count")
+  stillbornCount Int       @default(0) @map("stillborn_count")
+  notes         String?
+  dataSourceId  String?    @map("data_source_id")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  metadata      Json       @default("{}")
+  
+  // Relations
+  puppies       LitterPuppy[]
+  
+  @@map("litters")
+}
+
+model LitterPuppy {
+  id             String   @id @default(cuid())
+  litterId       String   @map("litter_id")
+  litter         Litter   @relation(fields: [litterId], references: [id], onDelete: Cascade)
+  dogId          String?  @map("dog_id")
+  dog            Dog?     @relation(fields: [dogId], references: [id], onDelete: SetNull)
+  sex            Sex
+  birthWeight    Int?     @map("birth_weight")
+  color          String?
+  coatType       String?  @map("coat_type")
+  markings       String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([litterId, dogId])
+  @@map("litter_puppies")
+}
+
+model OwnershipHistory {
+  id            String    @id @default(cuid())
+  dogId         String    @map("dog_id")
+  dog           Dog       @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  ownerId       String    @map("owner_id")
+  owner         User      @relation(fields: [ownerId], references: [id])
+  breederId     String?   @map("breeder_id")
+  breeder       Breeder?  @relation(fields: [breederId], references: [id])
+  startDate     DateTime  @map("start_date")
+  endDate       DateTime? @map("end_date")
+  transferType  String    @default("SALE") @map("transfer_type")
+  transferPrice Float?    @map("transfer_price")
+  notes         String?
+  documents     String[]
+  dataSourceId  String?   @map("data_source_id")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  metadata      Json      @default("{}")
+  
+  @@index([dogId, startDate(sort: Desc)])
+  @@index([ownerId, startDate(sort: Desc)])
+  @@map("ownership_history")
+}
+
+// ============================================================================
+// HEALTH AND GENETICS
+// ============================================================================
+
+model HealthRecord {
+  id                String   @id @default(cuid())
+  dogId             String   @map("dog_id")
+  dog               Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  type              String
+  result            String
+  score             Float?
+  grade             String?
+  testDate          DateTime @map("test_date")
+  organizationId    String?  @map("organization_id")
+  organization      Organization? @relation(fields: [organizationId], references: [id])
+  veterinarianName  String?  @map("veterinarian_name")
+  clinicName        String?  @map("clinic_name")
+  certificateNumber String?  @map("certificate_number")
+  certificateUrl    String?  @map("certificate_url")
+  notes             String?
+  dataSourceId      String?  @map("data_source_id")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  metadata          Json     @default("{}")
+  
+  @@index([dogId, type])
+  @@index([type, testDate(sort: Desc)])
+  @@index([result])
+  @@map("health_records")
+}
+
+model DnaTest {
+  id                String   @id @default(cuid())
+  dogId             String   @map("dog_id")
+  dog               Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  testType          String   @map("test_type")
+  result            String
+  laboratory        String?
+  testDate          DateTime @map("test_date")
+  certificateNumber String?  @map("certificate_number")
+  certificateUrl    String?  @map("certificate_url")
+  notes             String?
+  dataSourceId      String?  @map("data_source_id")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  metadata          Json     @default("{}")
+  
+  @@index([dogId, testType])
+  @@map("dna_tests")
+}
+
+// ============================================================================
+// SHOWS AND TITLES
+// ============================================================================
+
+model ShowResult {
+  id              String   @id @default(cuid())
+  dogId           String   @map("dog_id")
+  dog             Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  eventName       String   @map("event_name")
+  eventType       String?  @map("event_type")
+  eventDate       DateTime @map("event_date")
+  organizationId  String?  @map("organization_id")
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  judgeName       String?  @map("judge_name")
+  class           String?
+  placement       Int?
+  points          Float?
+  titleEarned     String?  @map("title_earned")
+  certificateUrl  String?  @map("certificate_url")
+  notes           String?
+  dataSourceId    String?  @map("data_source_id")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  metadata        Json     @default("{}")
+  
+  @@index([dogId, eventDate(sort: Desc)])
+  @@index([eventType, eventDate(sort: Desc)])
+  @@index([organizationId, eventDate(sort: Desc)])
+  @@map("show_results")
+}
+
+model Title {
+  id                String   @id @default(cuid())
+  dogId             String   @map("dog_id")
+  dog               Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  title             String
+  titleType         String   @map("title_type")
+  organizationId    String?  @map("organization_id")
+  organization      Organization? @relation(fields: [organizationId], references: [id])
+  earnedDate        DateTime @map("earned_date")
+  certificateNumber String?  @map("certificate_number")
+  certificateUrl    String?  @map("certificate_url")
+  isInternational   Boolean  @default(false) @map("is_international")
+  notes             String?
+  dataSourceId      String?  @map("data_source_id")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  metadata          Json     @default("{}")
+  
+  @@unique([dogId, title, organizationId])
+  @@map("titles")
+}
+
+// ============================================================================
+// PHOTOS
+// ============================================================================
+
+model Photo {
+  id                String   @id @default(cuid())
+  dogId             String   @map("dog_id")
+  dog               Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  url               String
+  thumbnailUrl      String?  @map("thumbnail_url")
+  caption           String?
+  photographerName  String?  @map("photographer_name")
+  photographerCredit String?  @map("photographer_credit")
+  isPrimary         Boolean  @default(false) @map("is_primary")
+  photoDate         DateTime? @map("photo_date")
+  location          String?
+  fileSizeBytes     Int?     @map("file_size_bytes")
+  dimensions        String?  @db.VarChar(20)
+  mimeType          String?  @map("mime_type")
+  storageProvider   String?  @map("storage_provider")
+  storagePath       String?  @map("storage_path")
+  dataSourceId      String?  @map("data_source_id")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  metadata          Json     @default("{}")
+  
+  @@index([dogId])
+  @@index([isPrimary])
+  @@map("photos")
+}
+
+// ============================================================================
+// DATA SOURCES AND IMPORTS
+// ============================================================================
+
+model DataSource {
+  id                    String   @id @default(cuid())
+  name                  String
+  type                  DataSourceType
+  description           String?
+  url                   String?
+  apiEndpoint           String?  @map("api_endpoint")
+  credentialsEncrypted String?  @map("credentials_encrypted")
+  importFrequency       String?  @map("import_frequency")
+  lastImportAt          DateTime? @map("last_import_at")
+  nextImportAt          DateTime? @map("next_import_at")
+  importStatus          String   @default("ACTIVE") @map("import_status")
+  totalRecordsImported  Int      @default(0) @map("total_records_imported")
+  totalRecordsFailed    Int      @default(0) @map("total_records_failed")
+  lastErrorMessage      String?  @map("last_error_message")
+  createdBy             String?  @map("created_by")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  metadata              Json     @default("{}")
+  
+  // Relations
+  dogs                  Dog[]
+  breeders              Breeder[]
+  breedings             Breeding[]
+  importBatches         ImportBatch[]
+  
+  @@map("data_sources")
+}
+
+model ImportBatch {
+  id                String   @id @default(cuid())
+  dataSourceId      String   @map("data_source_id")
+  dataSource        DataSource @relation(fields: [dataSourceId], references: [id])
+  batchName         String?  @map("batch_name")
+  startedAt         DateTime @default(now()) @map("started_at")
+  completedAt       DateTime? @map("completed_at")
+  status            String   @default("RUNNING")
+  totalRecords      Int      @default(0) @map("total_records")
+  successfulRecords Int      @default(0) @map("successful_records")
+  failedRecords     Int      @default(0) @map("failed_records")
+  errorSummary      Json?    @map("error_summary")
+  createdBy         String?  @map("created_by")
+  metadata          Json     @default("{}")
+  
+  // Relations
+  importLogs        ImportLog[]
+  
+  @@map("import_batches")
+}
+
+model ImportLog {
+  id               String   @id @default(cuid())
+  importBatchId    String   @map("import_batch_id")
+  importBatch      ImportBatch @relation(fields: [importBatchId], references: [id])
+  recordType       String   @map("record_type")
+  recordId         String?  @map("record_id")
+  action           String
+  status           String   @default("SUCCESS")
+  errorMessage     String?  @map("error_message")
+  originalData     Json?    @map("original_data")
+  processedData    Json?    @map("processed_data")
+  processingTimeMs Int?     @map("processing_time_ms")
+  createdAt        DateTime @default(now())
+  
+  @@index([importBatchId])
+  @@index([recordType])
+  @@index([status])
+  @@map("import_logs")
+}
+
+// ============================================================================
+// AUDIT AND VERSIONING
+// ============================================================================
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  tableName     String   @map("table_name")
+  recordId      String   @map("record_id")
+  action        String
+  userId        String?  @map("user_id")
+  user          User?    @relation(fields: [userId], references: [id])
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  oldValues     Json?    @map("old_values")
+  newValues     Json?    @map("new_values")
+  changedFields String[] @map("changed_fields")
+  createdAt     DateTime @default(now())
+  
+  @@index([tableName])
+  @@index([recordId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+model DataVersioning {
+  id            String   @id @default(cuid())
+  tableName     String   @map("table_name")
+  recordId      String   @map("record_id")
+  versionNumber Int      @map("version_number")
+  data          Json
+  changedBy     String?  @map("changed_by")
+  user          User?    @relation(fields: [changedBy], references: [id])
+  changedAt     DateTime @default(now()) @map("changed_at")
+  changeReason  String?  @map("change_reason")
+  metadata      Json     @default("{}")
+  
+  @@unique([tableName, recordId, versionNumber])
+  @@index([tableName])
+  @@index([recordId])
+  @@index([versionNumber])
+  @@map("data_versioning")
+}
+
+// ============================================================================
+// CACHE AND OPTIMIZATION
+// ============================================================================
+
+model PedigreeCache {
+  id           String   @id @default(cuid())
+  dogId        String   @map("dog_id")
+  generations  Int
+  pedigreeData Json     @map("pedigree_data")
+  htmlContent  String?  @map("html_content")
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime @map("expires_at")
+  
+  @@unique([dogId, generations])
+  @@index([dogId])
+  @@index([expiresAt])
+  @@map("pedigree_cache")
+}
+
+model CoiCache {
+  id              String   @id @default(cuid())
+  dogId           String   @map("dog_id")
+  generations     Int
+  coiValue        Float    @map("coi_value")
+  commonAncestors Json?    @map("common_ancestors")
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime @map("expires_at")
+  
+  @@unique([dogId, generations])
+  @@index([dogId])
+  @@index([expiresAt])
+  @@map("coi_cache")
+}
+
+model DescendantStats {
+  id               String   @id @default(cuid())
+  dogId            String   @map("dog_id")
+  generation       Int
+  totalDescendants Int      @default(0) @map("total_descendants")
+  maleDescendants  Int      @default(0) @map("male_descendants")
+  femaleDescendants Int     @default(0) @map("female_descendants")
+  lastCalculatedAt DateTime @default(now()) @map("last_calculated_at")
+  
+  @@unique([dogId, generation])
+  @@index([dogId])
+  @@index([generation])
+  @@map("descendant_stats")
+}
+
+// ============================================================================
+// GENEALOGY RELATIONSHIPS (CLOSURE TABLE)
+// ============================================================================
+
+model DogAncestors {
+  id          String   @id @default(cuid())
+  ancestorId  String   @map("ancestor_id")
+  descendantId String   @map("descendant_id")
+  depth       Int
+  pathType    String   @map("path_type")
+  createdAt   DateTime @default(now())
+  
+  @@unique([ancestorId, descendantId, depth, pathType])
+  @@index([ancestorId])
+  @@index([descendantId])
+  @@index([depth])
+  @@index([pathType])
+  @@map("dog_ancestors")
+}
+
+model CoiRelationships {
+  id            String   @id @default(cuid())
+  dogId         String   @map("dog_id")
+  ancestorId    String   @map("ancestor_id")
+  contribution  Float
+  pathCount     Int      @map("path_count")
+  generations   Int
+  calculatedAt  DateTime @default(now()) @map("calculated_at")
+  
+  @@unique([dogId, ancestorId, generations])
+  @@index([dogId])
+  @@index([ancestorId])
+  @@index([contribution(sort: Desc)])
+  @@map("coi_relationships")
+}
+
+model CommonAncestors {
+  id          String   @id @default(cuid())
+  dog1Id      String   @map("dog1_id")
+  dog2Id      String   @map("dog2_id")
+  ancestorId  String   @map("ancestor_id")
+  contribution Float
+  generations Int
+  calculatedAt DateTime @default(now()) @map("calculated_at")
+  
+  @@unique([dog1Id, dog2Id, ancestorId])
+  @@index([dog1Id])
+  @@index([dog2Id])
+  @@index([ancestorId])
+  @@map("common_ancestors")
+}
+
+model LinebreedingStats {
+  id                   String   @id @default(cuid())
+  dogId                String   @map("dog_id")
+  ancestorId           String   @map("ancestor_id")
+  percentageInPedigree Float    @map("percentage_in_pedigree")
+  occurrenceCount      Int      @map("occurrence_count")
+  maxGeneration        Int      @map("max_generation")
+  minGeneration        Int      @map("min_generation")
+  calculatedAt         DateTime @default(now()) @map("calculated_at")
+  
+  @@unique([dogId, ancestorId])
+  @@index([dogId])
+  @@index([ancestorId])
+  @@map("linebreeding_stats")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  USER
+  BREEDER
+  ADMIN
+  MODERATOR
+}
+
+enum OrganizationType {
+  CLUB
+  KENNEL
+  ORGANIZATION
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum DataSourceType {
+  MANUAL
+  CSV
+  API
+  SCRAPING
+  IMPORT
+}

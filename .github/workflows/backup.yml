@@ -1,0 +1,68 @@
+name: Automated Backups
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: Create Automated Backup
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Install Redis CLI
+        run: |
+          sudo apt-get install -y redis-tools
+
+      - name: Set up backup script permissions
+        run: chmod +x scripts/backup.sh
+
+      - name: Run backup script
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: ./scripts/backup.sh
+
+      - name: Verify backup
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          aws s3 ls "s3://${{ secrets.BACKUP_S3_BUCKET }}/postgresql/" --region ${{ secrets.AWS_REGION }} | grep "$TIMESTAMP"
+          if [ $? -eq 0 ]; then
+            echo "✅ Backup verified successfully"
+          else
+            echo "❌ Backup verification failed"
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: 'failure'
+          text: '❌ Automated backup failed!'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
