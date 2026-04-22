@@ -58,13 +58,14 @@ export function errorHandler(error: Error, req: Request, res: Response, next: Ne
 
   // Handle Prisma errors
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    switch (error.code) {
+    const prismaError = error as any;
+    switch (prismaError.code) {
       case 'P2002':
         return res.status(409).json({
           code: ErrorCode.CONFLICT,
           error: 'Conflict',
           message: 'A record with this unique field already exists',
-          details: isDevelopment ? error.meta : undefined,
+          details: isDevelopment ? prismaError.meta : undefined,
         });
       case 'P2025':
         return res.status(404).json({
@@ -77,14 +78,14 @@ export function errorHandler(error: Error, req: Request, res: Response, next: Ne
           code: ErrorCode.VALIDATION_ERROR,
           error: 'Validation Error',
           message: 'Foreign key constraint failed',
-          details: isDevelopment ? error.meta : undefined,
+          details: isDevelopment ? prismaError.meta : undefined,
         });
       default:
         return res.status(500).json({
           code: ErrorCode.DATABASE_ERROR,
           error: 'Database Error',
           message: 'A database error occurred',
-          details: isDevelopment ? { code: error.code, meta: error.meta } : undefined,
+          details: isDevelopment ? { code: prismaError.code, meta: prismaError.meta } : undefined,
         });
     }
   }
