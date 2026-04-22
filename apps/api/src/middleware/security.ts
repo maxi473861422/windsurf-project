@@ -510,8 +510,9 @@ export const rateLimiterByEndpoint = (limits: { [key: string]: { windowMs: numbe
       await redisClient.expire(key, Math.ceil(limit.windowMs / 1000));
     }
 
+    let ttl = Math.ceil(limit.windowMs / 1000);
     if (current > limit.max) {
-      const ttl = await redisClient.ttl(key);
+      ttl = await redisClient.ttl(key);
       return res.status(429).json({
         error: 'Too many requests',
         retryAfter: ttl,
@@ -520,7 +521,7 @@ export const rateLimiterByEndpoint = (limits: { [key: string]: { windowMs: numbe
 
     res.setHeader('X-RateLimit-Limit', limit.max);
     res.setHeader('X-RateLimit-Remaining', limit.max - current);
-    res.setHeader('X-RateLimit-Reset', ttl || limit.windowMs / 1000);
+    res.setHeader('X-RateLimit-Reset', ttl);
 
     next();
   };
@@ -659,7 +660,7 @@ export const securityAudit = async (req: Request, res: Response, next: NextFunct
         userAgent: req.headers['user-agent'],
       };
 
-      await redisClient.lpush(auditKey, JSON.stringify(auditData));
+      await redisClient.lPush(auditKey, JSON.stringify(auditData));
       await redisClient.expire(auditKey, 30 * 24 * 60 * 60); // 30 days
     }
   });
